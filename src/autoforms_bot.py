@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import time
 from pathlib import Path
 from typing import Callable
@@ -13,6 +14,9 @@ BASE_URL = (
     "https://appolozfcayena.gestiontl.co/grupoconstructor/Operaciones/Procesos/"
     "CrearFormularioOtrasMercanc%C3%ADas.aspx"
 )
+
+LOGIN_URL_HINT = "login.aspx"
+
 
 
 class ApoloFormBot:
@@ -47,8 +51,44 @@ class ApoloFormBot:
         except Exception as exc:
             raise RuntimeError(f"Error en paso '{title}': {exc}") from exc
 
-    def run(self, data: dict[str, str], contrato_pdf: str, dry_run: bool) -> None:
+    def is_login_page(self) -> bool:
+        return LOGIN_URL_HINT in self.page.url.lower()
+
+    def login_if_needed(self, username: str | None, password: str | None) -> None:
+        if not self.is_login_page():
+            return
+        if not username or not password:
+            raise RuntimeError(
+                "El portal redirigió al login. Debes pasar --username y --password "
+                "(o APPOLO_USER / APPOLO_PASS)."
+            )
+
+        user_locator = self.page.locator(
+            "input[name*='UserName'], input[id*='UserName'], #UserName, input[type='text']"
+        ).first
+        pass_locator = self.page.locator(
+            "input[name*='Password'], input[id*='Password'], #Password, input[type='password']"
+        ).first
+
+        user_locator.fill(username, timeout=self.timeout_ms)
+        pass_locator.fill(password, timeout=self.timeout_ms)
+
+        login_button = self.page.locator(
+            "input[type='submit'][value*='Login'], button:has-text('Login'), input[name*='LoginButton']"
+        ).first
+        login_button.click(timeout=self.timeout_ms)
+        self.page.wait_for_load_state("domcontentloaded")
+
+    def run(
+        self,
+        data: dict[str, str],
+        contrato_pdf: str,
+        dry_run: bool,
+        username: str | None,
+        password: str | None,
+    ) -> None:
         self.page.goto(BASE_URL, wait_until="domcontentloaded")
+        self.login_if_needed(username=username, password=password)
 
         # 1-4 tipo operación
         self.safe_step("Tipo Operación: Ingreso", lambda: self.click("#dnn_ctr17918_DocumentosActivosFijos_ddlTipoOperacion"))
@@ -123,14 +163,27 @@ class ApoloFormBot:
         self.click_role("button", "Cerrar")
 
 
-def run(remision_pdf: str, contrato_pdf: str, headless: bool, dry_run: bool) -> Path:
+def run(
+    remision_pdf: str,
+    contrato_pdf: str,
+    headless: bool,
+    dry_run: bool,
+    username: str | None,
+    password: str | None,
+) -> Path:
     Path("artifacts").mkdir(exist_ok=True)
     data = parse_remision(remision_pdf)
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless)
         page = browser.new_page()
         bot = ApoloFormBot(page)
-        bot.run(data=data, contrato_pdf=contrato_pdf, dry_run=dry_run)
+        bot.run(
+            data=data,
+            contrato_pdf=contrato_pdf,
+            dry_run=dry_run,
+            username=username,
+            password=password,
+        )
 
         output = Path(f"artifacts/apolo_form_{int(time.time())}.png")
         page.screenshot(path=str(output), full_page=True)
@@ -149,12 +202,19 @@ if __name__ == "__main__":
     parser.add_argument("--contrato-pdf", required=True, help="PDF fijo: contrato")
     parser.add_argument("--headless", default="false", choices=["true", "false"])
     parser.add_argument("--dry-run", action="store_true", help="No da clic en Aprobar")
+    parser.add_argument("--username", default=None, help="Usuario APPOLO")
+    parser.add_argument("--password", default=None, help="Contraseña APPOLO")
 
     args = parser.parse_args()
+    username = args.username or os.getenv("APPOLO_USER")
+    password = args.password or os.getenv("APPOLO_PASS")
+
     result = run(
         remision_pdf=args.remision_pdf,
         contrato_pdf=args.contrato_pdf,
         headless=args.headless == "true",
         dry_run=args.dry_run,
+        username=username,
+        password=password,
     )
     print(f"Evidencia guardada en: {result}")

@@ -84,6 +84,27 @@ python src/autoforms_bot.py \
   --dry-run
 ```
 
+
+## Login automático
+
+Si APPOLO te redirige a `login.aspx`, ahora el bot puede autenticarse automáticamente.
+
+Puedes pasar credenciales por parámetros:
+
+```powershell
+python src/autoforms_bot.py --remision-pdf "C:\ruta\REMISION_0106.pdf" --contrato-pdf "C:\ruta\CONTRATO_FIJO.pdf" --headless false --dry-run --username gcjm --password 'Gcjm123$'
+```
+
+> En PowerShell usa comillas simples para contraseñas con `$` (ejemplo: `'Gcjm123$'`).
+
+O por variables de entorno:
+
+```powershell
+$env:APPOLO_USER = "gcjm"
+$env:APPOLO_PASS = 'Gcjm123$'
+python src/autoforms_bot.py --remision-pdf "C:\ruta\REMISION_0106.pdf" --contrato-pdf "C:\ruta\CONTRATO_FIJO.pdf" --headless false --dry-run
+```
+
 ## Notas importantes
 
 - El portal usa controles ASP.NET dinámicos; los selectores están implementados para el flujo real, pero puede requerir ajuste fino en ambiente productivo.
