@@ -32,6 +32,8 @@ Si no encuentra algo, usa valores por defecto seguros:
 
 ## Instalación
 
+### Linux / macOS
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate
@@ -39,16 +41,40 @@ pip install -r requirements.txt
 playwright install chromium
 ```
 
-## Uso
+### Windows (PowerShell)
 
-```bash
-python src/autoforms_bot.py \
-  --remision-pdf /ruta/REMISION_0106.pdf \
-  --contrato-pdf /ruta/CONTRATO_FIJO.pdf \
-  --headless false
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+playwright install chromium
 ```
 
-Para pruebas sin aprobar:
+## Uso correcto (IMPORTANTE)
+
+El error que mostraste aparece porque PowerShell interpretó cada parámetro (`--remision-pdf`, `--contrato-pdf`, etc.) como un comando separado.
+
+Debes ejecutar **todo en una sola instrucción**.
+
+### Opción A: una sola línea (PowerShell)
+
+```powershell
+python src/autoforms_bot.py --remision-pdf "C:\ruta\REMISION_0106.pdf" --contrato-pdf "C:\ruta\CONTRATO_FIJO.pdf" --headless false --dry-run
+```
+
+### Opción B: varias líneas en PowerShell (usar acento grave `)
+
+```powershell
+python src/autoforms_bot.py `
+  --remision-pdf "C:\ruta\REMISION_0106.pdf" `
+  --contrato-pdf "C:\ruta\CONTRATO_FIJO.pdf" `
+  --headless false `
+  --dry-run
+```
+
+> En PowerShell **NO** se usa `\` para continuar línea (eso es de bash). Se usa el backtick: `` ` ``.
+
+### Linux / macOS (sí usa `\`)
 
 ```bash
 python src/autoforms_bot.py \
