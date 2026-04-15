@@ -74,10 +74,21 @@ class ApoloFormBot:
         pass_locator.fill(password, timeout=self.timeout_ms)
 
         login_button = self.page.locator(
-            "input[type='submit'][value*='Login'], button:has-text('Login'), input[name*='LoginButton']"
+            "#MainContent_LoginUser_LoginButton, "
+            "input[name*='LoginButton'], "
+            "input[type='submit'][value*='Login'], "
+            "button:has-text('Login')"
         ).first
-        login_button.click(timeout=self.timeout_ms)
+
+        try:
+            login_button.wait_for(state="visible", timeout=self.timeout_ms)
+            login_button.click(timeout=self.timeout_ms, force=True)
+        except Exception:
+            # Fallback común en formularios ASP.NET
+            pass_locator.press("Enter", timeout=self.timeout_ms)
+
         self.page.wait_for_load_state("domcontentloaded")
+        self.page.wait_for_timeout(800)
 
     def run(
         self,
