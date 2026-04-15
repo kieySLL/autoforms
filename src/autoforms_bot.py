@@ -74,10 +74,21 @@ class ApoloFormBot:
         pass_locator.fill(password, timeout=self.timeout_ms)
 
         login_button = self.page.locator(
-            "input[type='submit'][value*='Login'], button:has-text('Login'), input[name*='LoginButton']"
+            "#MainContent_LoginUser_LoginButton, "
+            "input[name*='LoginButton'], "
+            "input[type='submit'][value*='Login'], "
+            "button:has-text('Login')"
         ).first
-        login_button.click(timeout=self.timeout_ms)
+
+        try:
+            login_button.wait_for(state="visible", timeout=self.timeout_ms)
+            login_button.click(timeout=self.timeout_ms, force=True)
+        except Exception:
+            # Fallback común en formularios ASP.NET
+            pass_locator.press("Enter", timeout=self.timeout_ms)
+
         self.page.wait_for_load_state("domcontentloaded")
+        self.page.wait_for_timeout(800)
 
     def run(
         self,
@@ -95,12 +106,15 @@ class ApoloFormBot:
         self.safe_step("Seleccionar Ingreso", lambda: self.click_text("Ingreso"))
         self.safe_step("Generar", lambda: self.click_role("button", "Generar"))
 
-        # 5-10 agregar ítem formulario
-        self.safe_step("Agregar ítem", lambda: self.click_role("button", "Agregar"))
-        self.safe_step("Descripción", lambda: self.fill("input[name*='txtDescripcion']", data["descripcion_item"]))
-        self.safe_step("Cantidad", lambda: self.fill("input[name*='txtCantidad']", data["cantidad"]))
-        self.safe_step("Serial", lambda: self.fill("input[name*='txtSerial']", data.get("serial", "")))
-        self.safe_step("Guardar ítem", lambda: self.click_role("button", "Guardar"))
+        # 5-10 agregar ítem formulario (modal del bloque FORMULARIO OTRAS MERCANCIAS)
+        self.safe_step(
+            "Agregar ítem en formulario",
+            lambda: self.add_formulario_item(
+                descripcion=data["descripcion_item"],
+                cantidad=data["cantidad"],
+                serial=data.get("serial", ""),
+            ),
+        )
 
         # 11-21 datos adicionales
         self.safe_step("Contrato", lambda: self.fill("input[name*='txtContrato']", data["contrato"]))
@@ -161,6 +175,28 @@ class ApoloFormBot:
         self.click_role("button", "Subir")
         self.wait(1200)
         self.click_role("button", "Cerrar")
+
+
+    def add_formulario_item(self, descripcion: str, cantidad: str, serial: str) -> None:
+        # Evita confundir el botón "Agregar" del bloque de complementos.
+        agregar_formulario = self.page.locator(
+            "div:has-text('FORMULARIO OTRAS MERCANCIAS') a:has-text('Agregar'), "
+            "div:has-text('FORMULARIO OTRAS MERCANCÍAS') a:has-text('Agregar'), "
+            "a[title*='Agregar'][name*='Agregar'], a:has-text('+ Agregar')"
+        ).first
+        agregar_formulario.click(timeout=self.timeout_ms)
+
+        modal = self.page.locator(
+            "div:has-text('Crear/Modificar Formulario Otras Mercancias Operación de Ingreso'), "
+            "div:has-text('Crear/Modificar Formulario Otras Mercancías Operación de Ingreso')"
+        ).first
+        modal.wait_for(state="visible", timeout=self.timeout_ms)
+
+        modal.locator("input[name*='txtDescripcion']").first.fill(descripcion, timeout=self.timeout_ms)
+        modal.locator("input[name*='txtCantidad']").first.fill(cantidad, timeout=self.timeout_ms)
+        modal.locator("input[name*='txtSerial']").first.fill(serial, timeout=self.timeout_ms)
+        modal.get_by_role("button", name="Guardar", exact=False).first.click(timeout=self.timeout_ms)
+        self.page.wait_for_timeout(800)
 
 
 def run(
